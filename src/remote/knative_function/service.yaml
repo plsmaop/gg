@@ -1,0 +1,12 @@
+apiVersion: serving.knative.dev/v1
+kind: Service
+metadata:
+  name: serverless
+  namespace: default
+spec:
+  template:
+    spec:
+      containers:
+        - image: plsmaop/serverless
+          ports:
+          - containerPort: 8080
