@@ -59,6 +59,12 @@ unique_ptr<StorageBackend> StorageBackend::create_backend( const string & uri )
     config.password = endpoint.password;
 
     backend = make_unique<RedisStorageBackend>( config );
+
+    cout << "use redis: " << config.ip << " " << config.port << " " << config.username << " " << config.password << endl;
+  } else if ( endpoint.protocol == "local" ) {
+    backend = make_unique<LocalStorageBackend>( endpoint.host );
+
+    cout << "use local: " << endpoint.host << endl;
   }
   else {
     throw runtime_error( "unknown storage backend" );
