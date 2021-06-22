@@ -121,7 +121,7 @@ size_t KNExecutionEngine::job_count() const
 
 bool KNExecutionEngine::can_execute( const gg::thunk::Thunk & thunk ) const
 {
-  return thunk.infiles_size() < 200_MiB;
+  return thunk.infiles_size() < 2000_MiB;
 }
 
 float KNExecutionEngine::compute_cost( const chrono::steady_clock::time_point &,

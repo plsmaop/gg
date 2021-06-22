@@ -1,9 +1,10 @@
 #!/bin/bash -e
 
-USAGE="$0 <N> <JOBS-COUNT>"
+USAGE="$0 <N> <JOBS-COUNT> <ENGINE>"
 
 N=${1?$USAGE}
 JOBS_COUNT=${2?$USAGE}
+ENGINE=${3?USAGE}
 
 DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" >/dev/null 2>&1 && pwd )"
 cd $DIR/../
@@ -18,6 +19,6 @@ printf "3. Create thunks for number %s\n" "$N"
 ./create-thunk.sh $N ./fib ./add
 
 printf "4. Run calculation\n"
-gg force --jobs=$JOBS_COUNT --engine=lambda "fib${N}_output"
+gg force --jobs=$JOBS_COUNT --engine=$ENGINE "fib${N}_output"
 
 printf "5. Result: %s\n" $(cat fib${N}_output)

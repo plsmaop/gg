@@ -37,6 +37,8 @@ public:
     /* construct with numerical IP address and numeral port number */
     Address( const std::string & ip, const uint16_t port );
 
+    Address( const std::string & hostname, const std::string & service, const uint16_t port );
+
     /* accessors */
     std::pair<std::string, uint16_t> ip_port( void ) const;
     std::string ip( void ) const { return ip_port().first; }

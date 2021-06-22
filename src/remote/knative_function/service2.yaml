@@ -1,0 +1,21 @@
+apiVersion: serving.knative.dev/v1
+kind: Service
+metadata:
+  name: serverless2
+  namespace: default
+spec:
+  template:
+    metadata:
+      annotations:
+        autoscaling.knative.dev/target: "1"
+    spec:
+      containerConcurrency: 1
+      containers:
+      - image: plsmaop/serverless:flask2
+        ports:
+        - containerPort: 8080
+        env:
+        - name: AWS_SECRET_ACCESS_KEY
+          value: "WmxCN3zNS4cU/BdQvHjEk24cFTCdUXfySr2CESOc"
+        - name: AWS_ACCESS_KEY_ID
+          value: "AKIA5ZFDMBZWXSAOABEJ"

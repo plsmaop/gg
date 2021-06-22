@@ -1,0 +1,56 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: serverless-deployment
+  labels:
+    app: serverless
+spec:
+  replicas: 30
+  selector:
+    matchLabels:
+      app: serverless
+  template:
+    metadata:
+      labels:
+        app: serverless
+    spec:
+      containers:
+      - name: serverless
+        image: plsmaop/serverless:flask
+        ports:
+        - containerPort: 8080
+        env:
+        - name: AWS_SECRET_ACCESS_KEY
+          value: "WmxCN3zNS4cU/BdQvHjEk24cFTCdUXfySr2CESOc"
+        - name: AWS_ACCESS_KEY_ID
+          value: "AKIA5ZFDMBZWXSAOABEJ"
+        resources:
+          limits:
+            cpu: "1"
+        volumeMounts:
+        - mountPath: /fuse
+          name: crail-test
+          readOnly: false
+      volumes:
+      - name: crail-test
+        hostPath:
+        # directory location on host
+          path: /home/ivan/fuse
+          # this field is optional
+          type: DirectoryOrCreate
+          
+
+---
+
+apiVersion: v1
+kind: Service
+metadata:
+  name: serverless-service
+spec:
+  type: NodePort
+  selector:
+    app: serverless
+  ports:
+    - protocol: TCP
+      port: 8080
+      targetPort: 8080

@@ -42,7 +42,7 @@ void LocalStorageBackend::put( const std::vector<PutRequest> & upload_requests,
 
               // write
               string dst_path = path_ + "/" + object_key;
-              FileDescriptor dst { CheckSystemCall( "open " + dst_path, open( dst_path.c_str(), O_RDWR ) ) };
+              FileDescriptor dst { CheckSystemCall( "open " + dst_path, open( dst_path.c_str(), O_RDWR | O_CREAT | O_EXCL, 0777 ) ) };
               dst.write(contents, true);
               dst.close();
               expected_responses++;

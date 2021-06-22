@@ -2,9 +2,10 @@
 DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" >/dev/null 2>&1 && pwd )"
 cd $DIR/../
 
-USAGE="$0 <JOBS-COUNT>"
+USAGE="$0 <JOBS-COUNT> <ENGINE>"
 
 JOBS_COUNT=${1?$USAGE}
+ENGINE=${2?$USAGE}
 
 if [ ! -d "llvm-project" ]; then
   printf "0. Clone LLVM from Github (it may take some time)\n"
@@ -32,4 +33,4 @@ printf "6. Input trunk:\n"
 cat bin/llvm-tblgen
 
 printf "7. Build llvm-tblgen\n"
-gg force --jobs=$JOBS_COUNT --engine=lambda bin/llvm-tblgen
+gg force --jobs=$JOBS_COUNT --engine=$ENGINE bin/llvm-tblgen

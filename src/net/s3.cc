@@ -4,13 +4,7 @@
 
 #include <cassert>
 #include <thread>
-#include <fcntl.h>
-#include <sys/types.h>
 
-#include "socket.hh"
-#include "secure_socket.hh"
-#include "http_request.hh"
-#include "http_response_parser.hh"
 #include "awsv4_sig.hh"
 #include "util/exception.hh"
 #include "util/temp_file.hh"
@@ -20,10 +14,40 @@ using namespace storage;
 
 const static std::string UNSIGNED_PAYLOAD = "UNSIGNED-PAYLOAD";
 
+static bool is_minio(const string & region)
+{
+  if ( region == "minio" ) {
+    return true;
+  }
+  else if ( region == "minio2" ) {
+    return true;
+  }
+  else if ( region == "minio3" ) {
+    return true;
+  }
+  else if ( region == "minio4" ) {
+    return true;
+  }
+
+  return false;
+}
+
 std::string S3::endpoint( const string & region, const string & bucket )
 {
   if ( region == "us-east-1" ) {
     return bucket + ".s3.amazonaws.com";
+  }
+  else if ( region == "minio" ) {
+    return "140.112.90.37";
+  }
+  else if ( region == "minio2" ) {
+    return "172.16.179.31";
+  }
+  else if ( region == "minio3" ) {
+    return "172.16.179.32";
+  }
+  else if ( region == "minio4" ) {
+    return "140.112.90.58";
   }
   else {
     return bucket + ".s3-" + region + ".amazonaws.com";
@@ -83,14 +107,21 @@ void S3Client::download_file( const string & bucket, const string & object,
 {
   const string endpoint = ( config_.endpoint.length() > 0 )
                           ? config_.endpoint : S3::endpoint( config_.region, bucket );
-  const Address s3_address { endpoint, "https" };
+
+  std::string protocol = "https";
+  const Address s3_address { endpoint, protocol };
 
   SSLContext ssl_context;
   HTTPResponseParser responses;
   SecureSocket s3 = ssl_context.new_secure_socket( tcp_connection( s3_address ) );
   s3.connect();
 
-  S3GetRequest request { credentials_, endpoint, config_.region, object };
+  string obj = object;
+  if ( is_minio( config_.region ) ) {
+    obj = bucket + "/" + object;
+  }
+
+  S3GetRequest request { credentials_, endpoint, config_.region, obj };
   HTTPRequest outgoing_request = request.to_http_request();
   responses.new_request_arrived( outgoing_request );
   s3.write( outgoing_request.str() );
@@ -104,7 +135,7 @@ void S3Client::download_file( const string & bucket, const string & object,
   }
 
   if ( responses.front().first_line() != "HTTP/1.1 200 OK" ) {
-    throw runtime_error( "HTTP failure in S3Client::download_file( " + bucket + ", " + object + " ): " + responses.front().first_line() );
+    throw runtime_error( "HTTP failure in S3Client::download_file( " + bucket + ", " + obj + " ): " + responses.front().first_line() );
   }
   else {
     file.write( responses.front().body(), true );
@@ -117,7 +148,9 @@ void S3Client::upload_files( const string & bucket,
 {
   const string endpoint = ( config_.endpoint.length() > 0 )
                           ? config_.endpoint : S3::endpoint( config_.region, bucket );
-  const Address s3_address { endpoint, "https" };
+
+  std::string protocol = "https";
+  const Address s3_address { endpoint, protocol };
 
   const size_t thread_count = config_.max_threads;
   const size_t batch_size = config_.max_batch_size;
@@ -131,6 +164,20 @@ void S3Client::upload_files( const string & bucket,
           for ( size_t first_file_idx = index;
                 first_file_idx < upload_requests.size();
                 first_file_idx += thread_count * batch_size ) {
+
+            /* if ( protocol == "https") {
+              SSLContext ssl_context;
+              SecureSocket s3 = ssl_context.new_secure_socket( tcp_connection( s3_address ) );
+              s3.connect();
+
+              do_upload_files<SecureSocket>( upload_requests, thread_count, batch_size, first_file_idx, s3, endpoint, bucket, config_.region );
+              continue;
+            }
+
+            auto s3 = tcp_connection( s3_address );
+            do_upload_files<TCPSocket>( upload_requests, thread_count, batch_size, first_file_idx, s3, endpoint, bucket, config_.region ); */
+
+
             SSLContext ssl_context;
             HTTPResponseParser responses;
             SecureSocket s3 = ssl_context.new_secure_socket( tcp_connection( s3_address ) );
@@ -141,7 +188,7 @@ void S3Client::upload_files( const string & bucket,
                   file_id < min( upload_requests.size(), first_file_idx + thread_count * batch_size );
                   file_id += thread_count ) {
               const string & filename = upload_requests.at( file_id ).filename.string();
-              const string & object_key = upload_requests.at( file_id ).object_key;
+              const string & object_key = ( is_minio( config_.region ) ? bucket + "/" : "" ) + upload_requests.at( file_id ).object_key;
               string hash = upload_requests.at( file_id ).content_hash.get_or( UNSIGNED_PAYLOAD );
 
               string contents;
@@ -162,6 +209,7 @@ void S3Client::upload_files( const string & bucket,
 
             while ( responses.pending_requests() ) {
               /* drain responses */
+              // cout << response_count << " " << responses.pending_requests() << endl;
               responses.parse( s3.read() );
               if ( not responses.empty() ) {
                 if ( responses.front().first_line() != "HTTP/1.1 200 OK" ) {
@@ -193,7 +241,8 @@ void S3Client::download_files( const std::string & bucket,
 {
   const string endpoint = ( config_.endpoint.length() > 0 )
                           ? config_.endpoint : S3::endpoint( config_.region, bucket );
-  const Address s3_address { endpoint, "https" };
+  std::string protocol = "https";
+  const Address s3_address { endpoint, protocol };
 
   const size_t thread_count = config_.max_threads;
   const size_t batch_size = config_.max_batch_size;
@@ -207,6 +256,22 @@ void S3Client::download_files( const std::string & bucket,
           for ( size_t first_file_idx = index;
                 first_file_idx < download_requests.size();
                 first_file_idx += thread_count * batch_size ) {
+
+            
+            /* if ( protocol == "https") {
+              SSLContext ssl_context;
+              SecureSocket s3 = ssl_context.new_secure_socket( tcp_connection( s3_address ) );
+              s3.connect();
+
+              do_download_files<SecureSocket>( download_requests, thread_count, batch_size,first_file_idx, s3, endpoint, bucket, config_.region );
+              continue;
+            }
+
+            auto s3 = tcp_connection( s3_address );
+            do_download_files<TCPSocket>( download_requests, thread_count, batch_size,first_file_idx, s3, endpoint, bucket, config_.region ); */
+
+
+
             SSLContext ssl_context;
             HTTPResponseParser responses;
             SecureSocket s3 = ssl_context.new_secure_socket( tcp_connection( s3_address ) );
@@ -218,7 +283,9 @@ void S3Client::download_files( const std::string & bucket,
             for ( size_t file_id = first_file_idx;
                   file_id < min( download_requests.size(), first_file_idx + thread_count * batch_size );
                   file_id += thread_count ) {
-              const string & object_key = download_requests.at( file_id ).object_key;
+              const string & object_key = ( is_minio( config_.region ) ? bucket + "/" : "" ) + download_requests.at( file_id ).object_key;
+
+              // auto obj = bucket + "/" + object_key;
 
               S3GetRequest request { credentials_, endpoint, config_.region, object_key };
 
@@ -233,6 +300,7 @@ void S3Client::download_files( const std::string & bucket,
 
             while ( response_count != expected_responses ) {
               /* drain responses */
+              // cout << response_count << " " << expected_responses << endl;
               responses.parse( s3.read() );
               if ( not responses.empty() ) {
                 if ( responses.front().first_line() != "HTTP/1.1 200 OK" ) {

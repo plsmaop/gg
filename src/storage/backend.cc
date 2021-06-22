@@ -33,7 +33,8 @@ unique_ptr<StorageBackend> StorageBackend::create_backend( const string & uri )
   ParsedURI endpoint { uri };
 
   unique_ptr<StorageBackend> backend;
-
+  auto port = endpoint.port.get_or( 443 );
+  cout << "use S3: " << endpoint.protocol << " " << port << " " << endpoint.host << endl;
   if ( endpoint.protocol == "s3" ) {
     backend = make_unique<S3StorageBackend>(
       ( endpoint.username.length() or endpoint.password.length() )
@@ -42,7 +43,8 @@ unique_ptr<StorageBackend> StorageBackend::create_backend( const string & uri )
       endpoint.host,
       endpoint.options.count( "region" )
         ? endpoint.options[ "region" ]
-        : "us-east-1" );
+        : "us-east-1",
+      port );
   }
   else if ( endpoint.protocol == "gs" ) {
     backend = make_unique<GoogleStorageBackend>(
@@ -61,13 +63,15 @@ unique_ptr<StorageBackend> StorageBackend::create_backend( const string & uri )
     backend = make_unique<RedisStorageBackend>( config );
 
     cout << "use redis: " << config.ip << " " << config.port << " " << config.username << " " << config.password << endl;
-  } else if ( endpoint.protocol == "local" ) {
-    backend = make_unique<LocalStorageBackend>( endpoint.host );
+  } 
+  else if ( endpoint.protocol == "local" ) {
+    string path = "/" + endpoint.host + "/" + endpoint.path;
+    backend = make_unique<LocalStorageBackend>( path );
 
-    cout << "use local: " << endpoint.host << endl;
+    cout << "use local: " << path  << endl;
   }
   else {
-    throw runtime_error( "unknown storage backend" );
+    throw runtime_error( "unknown storage backend: " + endpoint.protocol );
   }
 
   if ( backend != nullptr ) {

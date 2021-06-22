@@ -102,6 +102,21 @@ Address::Address( const std::string & hostname, const std::string & service )
     *this = Address( hostname, service, hints );
 }
 
+/* construct by resolving host name and service name */
+Address::Address( const std::string & hostname, const std::string & service, const uint16_t port )
+    : size_(),
+      addr_()
+{
+    addrinfo hints;
+    zero( hints );
+    hints.ai_family = AF_INET;
+
+    *this = Address( hostname, service, hints );
+
+    auto in4 = reinterpret_cast< struct sockaddr_in * >(&(this->addr_.as_sockaddr));
+    in4->sin_port = htons( port );
+}
+
 /* construct with numerical IP address and numeral port number */
 Address::Address( const std::string & ip, const uint16_t port )
     : size_(),
